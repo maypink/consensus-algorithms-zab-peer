@@ -1,0 +1,89 @@
+syntax = "proto3";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/empty.proto";
+import "types.proto";
+package zab_peer;
+
+service ZabPeerService {
+  rpc SendElectionNotification (ElectionRequest) returns (google.protobuf.Empty) {}
+
+  rpc GetState(google.protobuf.Empty) returns (GetStateResponse) {}
+
+  rpc SendFollowerInfo(FollowerInfoRequest) returns (FollowerInfoResponse) {}
+
+  rpc SendAckNewLeader(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  rpc SendNewLeaderNotification(NewLeaderRequest) returns (google.protobuf.Empty) {}
+
+  rpc ProposeTransaction(ProposeTransactionRequest) returns (google.protobuf.Empty) {}
+
+  rpc CommitTransaction(CommitTransactionRequest) returns (google.protobuf.Empty) {}
+
+  rpc ReadBalances(BalanceRequest) returns (BalanceResponse) {}
+
+  rpc UpdateHistoryOldThreshold(UpdateHistoryOldThresholdRequest) returns (google.protobuf.Empty) {}
+
+  rpc SendHeartbeat(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
+
+message ElectionRequest {
+  zab.Vote vote = 1;
+  uint32 id = 2;
+  zab.State state = 3;
+  uint32 round = 4;
+}
+
+message NewLeaderRequest {
+  uint32 id = 1;
+}
+
+message BalanceRequest {
+  uint32 id = 1;
+}
+
+message BalanceResponse {
+  uint32 id = 1;
+  uint32 amount = 2;
+}
+
+message GetStateResponse {
+  zab.State state = 1;
+}
+
+message FollowerInfoRequest {
+  zab.ZxId last_zx_id = 1;
+}
+
+message FollowerInfoResponse {
+  zab.ZxId last_zx_id = 1;
+
+  oneof type {
+    zab.Trunc trunc = 2;
+    zab.Diff diff = 3;
+    zab.Snap snap = 4;
+  }
+}
+
+message ProposeTransactionRequest {
+  zab.ZxId zx_id = 1;
+  zab.BankTransaction transaction = 2;
+}
+
+message AckTransactionRequest {
+  zab.ZxId zx_id = 1;
+}
+
+message CommitTransactionRequest {
+  zab.ZxId zx_id = 1;
+}
+
+message UpdateHistoryOldThresholdRequest {
+  zab.ZxId zx_id = 1;
+}
+
+message HistoryRequest {
+  zab.History history = 1;
+}
