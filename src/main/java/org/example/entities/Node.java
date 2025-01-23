@@ -5,6 +5,10 @@ import org.springframework.stereotype.Component;
 import zab.History;
 import zab.State;
 
+import javax.annotation.PostConstruct;
+import java.util.Arrays;
+import java.util.List;
+
 
 @Component
 public class Node {
@@ -20,6 +24,19 @@ public class Node {
 
     @Value("${port}")
     private String port;
+
+    @Value("${peers}")
+    private String ports;
+
+    private List<String> peersPortsList;
+
+    @PostConstruct
+    public void init() {
+        // Convert the comma-separated string to a List
+        peersPortsList = Arrays.asList(ports.split(","));
+        state = State.Election;
+        history = History.getDefaultInstance();
+    }
 
     public Integer getId() {
         return id;
@@ -60,4 +77,9 @@ public class Node {
     public void setLeaderId(Integer leaderId) {
         this.leaderId = leaderId;
     }
+
+    public List<String> getPeerPorts() {
+        return peersPortsList;
+    }
+
 }
