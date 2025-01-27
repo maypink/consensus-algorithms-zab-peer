@@ -78,6 +78,12 @@
             <version>1.3.2</version>
         </dependency>
 
+        <dependency>
+            <artifactId>org-netbeans-core-startup</artifactId>
+            <groupId>org.netbeans.modules</groupId>
+            <version>RELEASE240</version>
+        </dependency>
+
 <!--        &lt;!&ndash; https://mvnrepository.com/artifact/net.devh/grpc-client-spring-boot-starter &ndash;&gt;-->
 <!--        <dependency>-->
 <!--            <groupId>net.devh</groupId>-->

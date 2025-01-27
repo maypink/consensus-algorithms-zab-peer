@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import zab.History;
 import zab.State;
+import zab.ZxId;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
@@ -36,6 +37,7 @@ public class Node {
         peersPortsList = Arrays.asList(ports.split(","));
         state = State.Election;
         history = History.getDefaultInstance();
+        history.toBuilder().setLastCommitedZxId(ZxId.newBuilder().setCounter(0).setEpoch(0).build()).build();
     }
 
     public Integer getId() {

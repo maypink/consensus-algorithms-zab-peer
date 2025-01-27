@@ -1,23 +1,19 @@
 package org.example.services;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-import com.google.protobuf.RpcCallback;
-import com.google.protobuf.RpcController;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.example.entities.CustomStreamObserver;
 import org.example.entities.Node;
+import org.example.utilities.LogFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import zab.*;
 import zab_peer.*;
 
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +21,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 @GrpcService
 public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
@@ -37,15 +32,22 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     private ZabPeerServiceGrpc.ZabPeerServiceStub stub;
     private Map<String, ZabPeerServiceGrpc.ZabPeerServiceFutureStub> peerStubs = new ConcurrentHashMap<>();
     private ConcurrentLinkedQueue<ElectionRequest> voteQueue = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<BankTransaction> transactionQueue = new ConcurrentLinkedQueue<>();
     private ExecutorService voteProcessingExecutor = Executors.newSingleThreadExecutor();
-    private ExecutorService voteSendingExecutor = Executors.newCachedThreadPool();
+    private ExecutorService transactionProcessingExecutor = Executors.newSingleThreadExecutor();
     private AtomicBoolean electionInProgress = new AtomicBoolean(false);
 
     private int currentEpoch = 0;
+    private int counter = 0;
     private Vote currentVote;
     private ConcurrentHashMap<Integer, Integer> voteCounts = new ConcurrentHashMap<>();
     private long electionStartTime;
     private static final long ELECTION_TIMEOUT_MILLIS = 5000;
+
+    @Autowired
+    private LogFormatter logger;
+
+    private long lastElectionFinishTime;
 
     // Initialize the stubs for peer communication
     public ZabPeerService() {
@@ -53,8 +55,8 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     }
 
     public void logNodeData(){
-        System.out.println("Node's id is " + node.getId());
-        System.out.println("Node's port is " + node.getPort());
+        logger.format("Node's id is " + node.getId());
+        logger.format("Node's port is " + node.getPort());
     }
 
     public void initializePeers() {
@@ -91,74 +93,104 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     private void processVote(ElectionRequest request) {
         synchronized (this) {
 
-            // Process the vote
-            Vote incomingVote = request.getVote();
-            System.out.println("Processing vote from Node " + incomingVote.getId());
+            if (request.getState() == State.Leading){
+                if (request.getId() == node.getId()){
+                    node.setState(State.Leading);
+                } else {
+                    node.setState(State.Following);
+                }
+                // If there is still an ongoing election
+            } else if (node.getState() == State.Election) {
+                // Process the vote
+                Vote incomingVote = request.getVote();
+                logger.format("Processing vote from Node " + incomingVote.getId());
 
-            // Check if the incoming vote is preferred
-            if (isPreferredVote(incomingVote)) {
-                System.out.println("Received vote is preferred above the current for node " + node.getId());
-                System.out.println("Updating current vote for Node " + node.getId());
-                // Retract previous values
-//                this.voteCounts.computeIfPresent(this.currentVote.getId(), (key, count) -> count > 0 ? count - 1 : 0);
+                // Check if the incoming vote is preferred
+                if (isPreferredVote(incomingVote)) {
+                    logger.format("Received vote is preferred above the current for node " + node.getId());
+                    logger.format("Updating current vote for Node " + node.getId());
 
-                this.currentVote = incomingVote;
-                // Count new vote
-                this.voteCounts.compute(incomingVote.getId(), (key, count) -> (count == null) ? 1 : count + 1);
+                    this.currentVote = incomingVote;
+                    // Count new vote
+                    this.voteCounts.compute(incomingVote.getId(), (key, count) -> (count == null) ? 1 : count + 1);
 
-                System.out.println("Current votes: " + voteCounts);
+                    logger.format("Current votes: " + voteCounts);
 
-                // Broadcast updated election notification
-                ElectionRequest updatedRequest = ElectionRequest.newBuilder()
-                        .setId(node.getId())
-                        .setVote(this.currentVote)
-                        .setState(State.Election)
-                        .build();
-                broadcastToPeers(updatedRequest, new CustomStreamObserver());
-            }
+                    // Broadcast updated election notification
+                    ElectionRequest updatedRequest = ElectionRequest.newBuilder()
+                            .setId(node.getId())
+                            .setVote(this.currentVote)
+                            .setState(State.Election)
+                            .build();
+                    broadcastToPeers(updatedRequest, new CustomStreamObserver());
+                }
 
-            // Check for quorum
-            if (isQuorumReached()) {
-                concludeElection();
-            }
+                // Check for quorum
+                if (isQuorumReached()) {
+                    this.counter = 0;
+                    this.currentEpoch += 1;
+                    concludeElection();
+                }
 
-             // Check if timeout has expired
-            if (System.currentTimeMillis() - electionStartTime > ELECTION_TIMEOUT_MILLIS) {
-                System.out.println("Election timed out. Retrying...");
-                System.out.println(this.voteCounts);
-                node.setState(State.Election);
-                this.currentEpoch += 1;
-                electionStartTime = System.currentTimeMillis();
+                 // Check if timeout has expired
+                if (System.currentTimeMillis() - electionStartTime > ELECTION_TIMEOUT_MILLIS) {
+                    logger.format("Election timed out. Retrying...");
+                    logger.format(String.valueOf(this.voteCounts));
+                    node.setState(State.Election);
+                    this.currentEpoch += 1;
+                    electionStartTime = System.currentTimeMillis();
 
-                // Update epoch + 1
-                ZxId zxId = ZxId.newBuilder()
-                        .setEpoch(node.getHistory().getLastCommitedZxId().getEpoch() + 1)
-                        .setCounter(node.getHistory().getLastCommitedZxId().getCounter())
-                        .build();
-                Vote newRoundVote = Vote.newBuilder()
-                        .setId(node.getId())
-                        .setLastZxId(zxId)
-                        .build();
-                ElectionRequest newRoundRequest = ElectionRequest.newBuilder()
-                        .setId(node.getId())
-                        .setVote(newRoundVote)
-                        .setState(State.Election)
-                        .build();
-                sendElectionNotification(newRoundRequest, new CustomStreamObserver());
+                    // Update epoch + 1
+                    ZxId zxId = ZxId.newBuilder()
+                            .setEpoch(node.getHistory().getLastCommitedZxId().getEpoch() + 1)
+                            .setCounter(node.getHistory().getLastCommitedZxId().getCounter())
+                            .build();
+                    Vote newRoundVote = Vote.newBuilder()
+                            .setId(node.getId())
+                            .setLastZxId(zxId)
+                            .build();
+                    ElectionRequest newRoundRequest = ElectionRequest.newBuilder()
+                            .setId(node.getId())
+                            .setVote(newRoundVote)
+                            .setState(State.Election)
+                            .build();
+                    sendElectionNotification(newRoundRequest, new CustomStreamObserver());
+                }
             }
         }
     }
 
+    private int getNewLeaderId() {
+        int totalVotes = peersPortsList.size() + 1; // Including this node
+        int quorum = totalVotes / 2 + 1;
+        for (Map.Entry<Integer, Integer> voteCount: this.voteCounts.entrySet()){
+            if (voteCount.getValue() >= quorum){
+                return voteCount.getKey();
+            }
+        }
+        return -1;
+    }
+
     private void concludeElection() {
-        System.out.println("Quorum reached! Node " + node.getId() + " becomes the leader.");
+        int newLeaderId = this.getNewLeaderId();
+        logger.format("Quorum reached! Node " + newLeaderId + " becomes the leader.");
         electionInProgress.set(false);
-        node.setState(State.Leading);
+        lastElectionFinishTime = System.currentTimeMillis();
+        if (node.getId() == newLeaderId){
+            node.setState(State.Leading);
+        } else {
+            node.setState(State.Following);
+        }
 
         // Notify all followers about the new leader
         for (String peerPort : peersPortsList) {
             try {
                 ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                stub.sendNewLeaderNotification(NewLeaderRequest.newBuilder().setId(node.getId()).build());
+//                stub.sendNewLeaderNotification(NewLeaderRequest.newBuilder().setId(node.getId()).build());
+                stub.sendElectionNotification(ElectionRequest.newBuilder()
+                        .setId(node.getId())
+                        .setVote(Vote.newBuilder().setId(node.getId()).setLastZxId(node.getHistory().getLastCommitedZxId()))
+                        .setState(State.Leading).build());
             } catch (Exception e) {
                 System.err.println("Failed to notify peer " + peerPort + ": " + e.getMessage());
             }
@@ -166,11 +198,10 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     }
 
     private void broadcastToPeers(ElectionRequest request, StreamObserver<Empty> done) {
-        System.out.println("broadcastToPeers");
         for (String peerPort : peersPortsList) {
             try {
                 ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                System.out.println("Sending vote from node " + node.getId() + " to peer on port " + peerPort + " for node " + request.getVote().getId());
+                logger.format("Sending vote from node " + node.getId() + " to peer on port " + peerPort + " for node " + request.getVote().getId());
                 stub.sendElectionNotification(request);
             } catch (Exception e) {
                 System.err.println("Failed to send election notification to peer " + peerPort + ": " + e.getMessage());
@@ -179,19 +210,17 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     }
 
     private void sendFirstElectionNotification(long currentTime, ElectionRequest request, StreamObserver<Empty> done){
-        System.out.println("sendFirstElectionNotification");
         // Start a new election if none is ongoing
         if (node.getState() != State.Election || currentTime - this.electionStartTime > ELECTION_TIMEOUT_MILLIS) {
             this.electionInProgress.set(true);
             this.electionStartTime = currentTime;
-            this.currentEpoch += 1;
             this.node.setState(State.Election);
 
             // Reset vote counts and vote for itself
-            System.out.println("Resetting votes count...");
+            logger.format("Resetting votes count...");
             this.voteCounts.clear();
             this.voteCounts.put(node.getId(), 1);
-            System.out.println(this.voteCounts);
+            logger.format(String.valueOf(this.voteCounts));
 
             Vote vote = Vote.newBuilder()
                     .setId(node.getId())
@@ -211,14 +240,13 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
 
     @Override
     public void sendElectionNotification(ElectionRequest request, StreamObserver<Empty> done) {
-        System.out.println("sendElectionNotification");
         long currentTime = System.currentTimeMillis();
 
         // Enqueue the incoming vote for processing
         voteQueue.offer(request);
 
         // If no ongoing election, start one
-        if (!electionInProgress.get()) {
+        if (!electionInProgress.get() && node.getState() != State.Leading) {
             synchronized (this) {
                 if (!electionInProgress.get()) {
                     sendFirstElectionNotification(currentTime, request, done);
@@ -262,7 +290,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     public void getState(Empty request, StreamObserver<GetStateResponse> done) {
 
         if (node.getState() == State.Election) {
-            System.out.println("Node " + node.getId() + " is in Election state. Waiting for election to complete.");
+            logger.format("Node " + node.getId() + " is in Election state. Waiting for election to complete.");
 
             // Start election process
             Vote vote = Vote.newBuilder()
@@ -280,8 +308,8 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
             try {
                 boolean electionCompleted = waitForElectionCompletion();
                 if (!electionCompleted) {
-                    System.out.println("Election timeout occurred. Proceeding with current state.");
-                    System.out.println(this.voteCounts);
+                    logger.format("Election timeout occurred. Proceeding with current state.");
+                    logger.format(String.valueOf(this.voteCounts));
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -293,7 +321,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
         GetStateResponse response = GetStateResponse.newBuilder()
                 .setState(node.getState())
                 .build();
-        System.out.println("State of the " + node.getId() + " node is " + node.getState().name());
+        logger.format("State of the " + node.getId() + " node is " + node.getState().name());
 
         done.onNext(response);
         done.onCompleted();
@@ -319,6 +347,11 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     public void sendFollowerInfo(FollowerInfoRequest request, StreamObserver<FollowerInfoResponse> done) {
 
         if (node.getState() == State.Leading) {
+            node.getHistory().toBuilder()
+                    .setLastCommitedZxId(ZxId.newBuilder()
+                            .setEpoch(node.getHistory().getLastCommitedZxId().getEpoch() + 1)
+                            .setCounter(0)
+                            .build());
 
             // Update LastCommittedZxId epoch
             node.getHistory().toBuilder()
@@ -369,7 +402,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
                             .build();
 
                     FollowerInfoResponse followerInfoResponse = stub.sendFollowerInfo(request).get();
-                    System.out.println("Sent follower's zxId: " + request.getLastZxId() + " to port " + peerPort);
+                    logger.format("Sent follower's zxId: " + request.getLastZxId() + " to port " + peerPort);
                     if (followerInfoResponse.getLastZxId().getCounter() < node.getHistory().getLastCommitedZxId().getCounter()) {
                         node.setState(State.Election);
                         this.sendElectionNotification(ElectionRequest.newBuilder().setId(node.getId()).build(), new CustomStreamObserver());
@@ -411,7 +444,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     @Override
     public void sendAckNewLeader(Empty request, StreamObserver<Empty> done) {
         if (node.getState() == State.Following){
-            System.out.println("Sending ACK for new leader...");
+            logger.format("Sending ACK for new leader...");
             for (String peerPort : peersPortsList) {
                 try {
                     ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
@@ -426,60 +459,124 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
         }
     }
 
-    /** To propose AND commit transaction enough to call only proposeTransaction method in client. */
+    private void startTransactionProcessingWorker() {
+        transactionProcessingExecutor.submit(() -> {
+            while (true) {
+                // Continuously poll the queue for incoming votes
+                BankTransaction transaction = transactionQueue.poll();
+                if (transaction != null) {
+                    processTransaction(transaction);
+                }
+                Thread.sleep(5); // Avoid busy waiting
+            }
+        });
+    }
+
+    private void processTransaction(BankTransaction transaction) {
+        synchronized (this) {
+
+        }
+    }
+
     @Override
     public void proposeTransaction(ProposeTransactionRequest request, StreamObserver<Empty> done) {
         // Start FLE if it wasn't started yet
         if (node.getState() != State.Leading || node.getState() != State.Following){
             this.sendElectionNotification(ElectionRequest.newBuilder().setId(node.getId()).build(), new CustomStreamObserver());
         }
-
-        System.out.println("Broadcasting proposed transaction: " + request.getTransaction());
+        ZxId currentZxid;
+        request.toBuilder().setZxId(node.getHistory().getLastCommitedZxId());
+        logger.format("Broadcasting proposed transaction: " + request.getTransaction());
         if (node.getState() == State.Leading) {
+            this.counter += 1;
+            currentZxid = ZxId.newBuilder().setEpoch(this.currentEpoch).setCounter(this.counter).build();
+            BankTransactionMap bankTransactionMap = node.getHistory().getProposed();
+            History history = node.getHistory();
+            node.setHistory(history.toBuilder().setProposed(bankTransactionMap.toBuilder()
+                    .addEntries(BankTransactionMapEntry
+                            .newBuilder()
+                            .setKey(currentZxid)
+                            .setValue(request.getTransaction())
+                            .build())
+                    ).build());
             for (String peerPort : peersPortsList) {
                 try {
-                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                    stub.proposeTransaction(request);
+//                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
+                    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
+                            .usePlaintext()
+                            .build();
+                    ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
+
+                    logger.format("Leader node " + node.getId() + " proposed transaction " + request.getTransaction() + " to port " + peerPort);
+                    request.toBuilder().setZxId(currentZxid);
+                    blockingStub.proposeTransaction(request);
                 } catch (Exception e) {
                     System.err.println("Failed to propose transaction to peer " + peerPort + ": " + e.getMessage());
                 }
             }
-            // Upon receiving ACK from all followers -- send COMMIT to all followers
+            logger.format("Leader node " + node.getId() + " received ACK");
+
+            // Upon receiving ACK from quorum of followers -- send COMMIT to all followers
             for (String peerPort : peersPortsList) {
                 try {
-                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
+//                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
+                    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
+                            .usePlaintext()
+                            .build();
+                    ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
+
                     CommitTransactionRequest commitTransactionRequest = CommitTransactionRequest
                             .newBuilder()
-                            .setZxId(request.getZxId())
+                            .setZxId(currentZxid)
                             .build();
-                    stub.commitTransaction(commitTransactionRequest);
+                    blockingStub.commitTransaction(commitTransactionRequest);
+//                    stub.commitTransaction(commitTransactionRequest);
                 } catch (Exception e) {
                     System.err.println("Failed to propose transaction to peer " + peerPort + ": " + e.getMessage());
                 }
             }
             done.onNext(Empty.getDefaultInstance());
+            done.onCompleted();
         } else if (node.getState() == State.Following) {
             // Add transaction to proposed list
+            logger.format("Following node " + node.getId() + " received proposed transaction " + request.getTransaction());
             BankTransactionMap bankTransactionMap = node.getHistory().getProposed();
-            bankTransactionMap.getEntriesList()
-                    .add(BankTransactionMapEntry
+            History history = node.getHistory();
+            currentZxid = ZxId.newBuilder().setEpoch(this.currentEpoch).setCounter(this.counter).build();
+            node.setHistory(history.toBuilder().setProposed(bankTransactionMap.toBuilder()
+                    .addEntries(BankTransactionMapEntry
                             .newBuilder()
-                            .setKey(request.getZxId())
+                            .setKey(currentZxid)
                             .setValue(request.getTransaction())
-                            .build());
-            node.setHistory(node.getHistory().toBuilder().setProposed(bankTransactionMap).build());
+                            .build()).build()).build());
             done.onNext(Empty.getDefaultInstance()); // ACK
+            done.onCompleted();
         }
     }
 
     @Override
     public void commitTransaction(CommitTransactionRequest request, StreamObserver<Empty> done) {
-        System.out.println("Broadcasting commit transaction for zxId: " + request.getZxId());
+        logger.format("Received commit transaction for zxId epoch "
+                + request.getZxId().getEpoch() + " and counter " + request.getZxId().getCounter());
         if (node.getState() == State.Leading) {
             for (String peerPort : peersPortsList) {
                 try {
                     ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
                     stub.commitTransaction(request);
+                    List<BankTransactionMapEntry> bankTransactionMapEntryList = node.getHistory().getProposed().getEntriesList();
+                    for (BankTransactionMapEntry bankTransactionMapEntry: bankTransactionMapEntryList) {
+                        if (bankTransactionMapEntry.getKey().getCounter() == request.getZxId().getCounter()
+                                && bankTransactionMapEntry.getKey().getEpoch() == request.getZxId().getEpoch()) {
+                            BankTransaction bankTransaction = bankTransactionMapEntry.getValue();
+                            logger.format("Transaction " + bankTransaction + " was committed.");
+                            BankTransactionMap committedTransactionMap = node.getHistory().getCommitted();
+                            node.setHistory(node.getHistory().toBuilder().setCommitted((committedTransactionMap.toBuilder()
+                                    .addEntries(BankTransactionMapEntry.newBuilder()
+                                            .setValue(bankTransaction)
+                                            .setKey(request.getZxId())
+                                            .build()))).build());
+                        }
+                    }
                 } catch (Exception e) {
                     System.err.println("Failed to commit transaction to peer " + peerPort + ": " + e.getMessage());
                 }
@@ -492,12 +589,13 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
                 if (bankTransactionMapEntry.getKey().getCounter() == request.getZxId().getCounter()
                         && bankTransactionMapEntry.getKey().getEpoch() == request.getZxId().getEpoch()) {
                     BankTransaction bankTransaction = bankTransactionMapEntry.getValue();
+                    logger.format("Transaction " + bankTransaction + " was committed.");
                     BankTransactionMap committedTransactionMap = node.getHistory().getCommitted();
-                    committedTransactionMap.toBuilder()
+                    node.setHistory(node.getHistory().toBuilder().setCommitted((committedTransactionMap.toBuilder()
                             .addEntries(BankTransactionMapEntry.newBuilder()
                                     .setValue(bankTransaction)
                                     .setKey(request.getZxId())
-                                    .build());
+                                    .build()))).build());
                 }
             }
             done.onNext(Empty.getDefaultInstance());
@@ -516,11 +614,12 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
             }
         }
         done.onNext(BalanceResponse.newBuilder().setId(accountId).setAmount(resultAmount).build());
+        done.onCompleted();
     }
 
     @Override
     public void updateHistoryOldThreshold(UpdateHistoryOldThresholdRequest request, StreamObserver<Empty> done) {
-        System.out.println("Updating old threshold to: " + request.getZxId());
+        logger.format("Updating old threshold to: " + request.getZxId());
         History history = node.getHistory();
         history.toBuilder().setOldThreshold(request.getZxId());
         node.setHistory(history);
@@ -539,7 +638,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
 
     @Override
     public void sendHeartbeat(Empty request, StreamObserver<Empty> done) {
-        System.out.println("Sending heartbeat to all peers...");
+        logger.format("Sending heartbeat to all peers...");
         for (String peerPort : peersPortsList) {
             try {
                 ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
