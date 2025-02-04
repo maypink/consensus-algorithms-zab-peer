@@ -4,9 +4,7 @@ import io.grpc.stub.StreamObserver;
 
 public class CustomStreamObserver implements StreamObserver {
     @Override
-    public void onNext(Object o) {
-        System.out.println("onNext is called");
-    }
+    public void onNext(Object o) {}
 
     @Override
     public void onError(Throwable throwable) {
@@ -14,7 +12,5 @@ public class CustomStreamObserver implements StreamObserver {
     }
 
     @Override
-    public void onCompleted() {
-        System.out.println("onCompleted is called");
-    }
+    public void onCompleted() {}
 }

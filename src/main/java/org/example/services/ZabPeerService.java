@@ -1,10 +1,12 @@
 package org.example.services;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
+import org.apache.catalina.connector.Response;
 import org.example.entities.CustomStreamObserver;
 import org.example.entities.Node;
 import org.example.utilities.LogFormatter;
@@ -16,11 +18,9 @@ import zab_peer.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @GrpcService
 public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
@@ -60,6 +60,9 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     }
 
     public void initializePeers() {
+        System.out.println("Initializing peers for peer " + this.node.getId());
+
+
         this.peersPortsList = node.getPeerPorts();
 
         if (this.voteCounts == null){
@@ -68,9 +71,17 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
 
         // Create stubs for each peer
         for (String peerPort : peersPortsList) {
+            System.out.println("Current peer is " + peerPort);
+
+            // local
             ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
                     .usePlaintext()
                     .build();
+
+            // docker
+//            ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+//                    .usePlaintext()
+//                    .build();
             ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = ZabPeerServiceGrpc.newFutureStub(channel);
             peerStubs.put(peerPort, stub);
         }
@@ -481,13 +492,17 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
     @Override
     public void proposeTransaction(ProposeTransactionRequest request, StreamObserver<Empty> done) {
         // Start FLE if it wasn't started yet
-        if (node.getState() != State.Leading || node.getState() != State.Following){
+        if (node.getState() != State.Leading && node.getState() != State.Following) {
             this.sendElectionNotification(ElectionRequest.newBuilder().setId(node.getId()).build(), new CustomStreamObserver());
         }
+
         ZxId currentZxid;
-        request.toBuilder().setZxId(node.getHistory().getLastCommitedZxId());
-        logger.format("Broadcasting proposed transaction: " + request.getTransaction());
+        // Update the request with leader's current zxid
+        // (NOTE: the builder call here needs to build a new request)
+        // logger.format("Broadcasting proposed transaction: " + request.getTransaction());
+
         if (node.getState() == State.Leading) {
+            // Update local state: increment counter and generate new zxid
             this.counter += 1;
             currentZxid = ZxId.newBuilder().setEpoch(this.currentEpoch).setCounter(this.counter).build();
             BankTransactionMap bankTransactionMap = node.getHistory().getProposed();
@@ -498,89 +513,178 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase{
                             .setKey(currentZxid)
                             .setValue(request.getTransaction())
                             .build())
-                    ).build());
+            ).build());
+
+            // Build the updated propose request with the new ZxId
+            ProposeTransactionRequest updatedRequest = request.toBuilder()
+                    .setZxId(currentZxid)
+                    .build();
+
+            // Prepare quorum details: total nodes and required quorum
+            int totalNodes = peersPortsList.size() + 1; // including this leader
+            int quorum = totalNodes / 2 + 1;
+            // Leader already acknowledges its own proposal
+            AtomicInteger ackCount = new AtomicInteger(1);
+
+            // Create a CountDownLatch for all peers
+            CountDownLatch latch = new CountDownLatch(peersPortsList.size());
+            // Use an executor to send proposals concurrently
+            ExecutorService executor = Executors.newFixedThreadPool(peersPortsList.size());
+
+            // Send propose transaction to each peer asynchronously
             for (String peerPort : peersPortsList) {
-                try {
-//                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
-                            .usePlaintext()
-                            .build();
-                    ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
+                executor.submit(() -> {
+                    try {
 
-                    logger.format("Leader node " + node.getId() + " proposed transaction " + request.getTransaction() + " to port " + peerPort);
-                    request.toBuilder().setZxId(currentZxid);
-                    blockingStub.proposeTransaction(request);
-                } catch (Exception e) {
-                    System.err.println("Failed to propose transaction to peer " + peerPort + ": " + e.getMessage());
-                }
+                        // Use blocking stub from a new channel (or consider reusing channels)
+                        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
+                                .usePlaintext()
+                                .build();
+
+                        // docker
+//                        ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+//                                .usePlaintext()
+//                                .build();
+                        ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
+                        logger.format("Transaction proposed to " + peerPort);
+                        // This call will block until a response (ACK) is received or an error occurs
+                        blockingStub.proposeTransaction(updatedRequest);
+                        // On success, increment ackCount
+                        ackCount.incrementAndGet();
+                        // Shutdown channel after use
+                        channel.shutdown();
+                    } catch (Exception e) {
+                        System.err.println("Failed to propose transaction to peer " + peerPort + ": " + e.getMessage());
+                    } finally {
+                        latch.countDown();
+                    }
+                });
             }
-            logger.format("Leader node " + node.getId() + " received ACK");
 
-            // Upon receiving ACK from quorum of followers -- send COMMIT to all followers
-            for (String peerPort : peersPortsList) {
-                try {
-//                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                    ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
-                            .usePlaintext()
-                            .build();
-                    ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
-
-                    CommitTransactionRequest commitTransactionRequest = CommitTransactionRequest
-                            .newBuilder()
-                            .setZxId(currentZxid)
-                            .build();
-                    blockingStub.commitTransaction(commitTransactionRequest);
-//                    stub.commitTransaction(commitTransactionRequest);
-                } catch (Exception e) {
-                    System.err.println("Failed to propose transaction to peer " + peerPort + ": " + e.getMessage());
+            // Wait for all peer responses (or timeout after 5 seconds)
+            try {
+                boolean allResponded = latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                if (!allResponded) {
+                    logger.format("Timeout occurred while waiting for ACKs. Proceeding with available ACKs.");
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.format("Interrupted while waiting for ACKs: " + e.getMessage());
             }
+            // Shutdown the executor service
+            executor.shutdown();
+
+            // Check if quorum is reached
+            if (ackCount.get() >= quorum) {
+                logger.format("Received ACK from quorum (" + ackCount.get() + " out of " + totalNodes + ").");
+
+                // Send commit message to all peers
+                for (String peerPort : peersPortsList) {
+                    try {
+                        // Use the pre-initialized future stub if available
+                        ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
+                        if (stub == null) {
+                            // Alternatively, create one if it was not already initialized
+
+                            // local running
+                            ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
+                                    .usePlaintext()
+                                    .build();
+
+                            // docker
+//                          ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+//                                  .usePlaintext()
+//                                  .build();
+                            stub = ZabPeerServiceGrpc.newFutureStub(channel);
+                            peerStubs.put(peerPort, stub);
+                        }
+                        CommitTransactionRequest commitTransactionRequest = CommitTransactionRequest
+                                .newBuilder()
+                                .setZxId(currentZxid)
+                                .build();
+                        stub.commitTransaction(commitTransactionRequest);
+                    } catch (Exception e) {
+                        System.err.println("Failed to commit transaction to peer " + peerPort + ": " + e.getMessage());
+                    }
+                }
+                // Commit to the leader itself
+                CommitTransactionRequest commitTransactionRequest = CommitTransactionRequest
+                        .newBuilder()
+                        .setZxId(currentZxid)
+                        .build();
+                this.commitTransaction(commitTransactionRequest, new CustomStreamObserver());
+            } else {
+                logger.format("Quorum not reached for proposed transaction. ACK count: " + ackCount.get() +
+                        " (required quorum: " + quorum + ")");
+            }
+
             done.onNext(Empty.getDefaultInstance());
             done.onCompleted();
         } else if (node.getState() == State.Following) {
-            // Add transaction to proposed list
-            logger.format("Following node " + node.getId() + " received proposed transaction " + request.getTransaction());
+            logger.format("Following node " + node.getId() +
+                    " received proposed transaction " + request.getTransaction() + " with counter " +
+                    request.getZxId().getCounter() + " and epoch " + request.getZxId().getEpoch());
             BankTransactionMap bankTransactionMap = node.getHistory().getProposed();
             History history = node.getHistory();
-            currentZxid = ZxId.newBuilder().setEpoch(this.currentEpoch).setCounter(this.counter).build();
+            currentZxid = ZxId.newBuilder()
+                    .setEpoch(request.getZxId().getEpoch())
+                    .setCounter(request.getZxId().getCounter())
+                    .build();
             node.setHistory(history.toBuilder().setProposed(bankTransactionMap.toBuilder()
                     .addEntries(BankTransactionMapEntry
                             .newBuilder()
                             .setKey(currentZxid)
                             .setValue(request.getTransaction())
                             .build()).build()).build());
-            done.onNext(Empty.getDefaultInstance()); // ACK
+            done.onNext(Empty.getDefaultInstance());
             done.onCompleted();
         }
     }
+
 
     @Override
     public void commitTransaction(CommitTransactionRequest request, StreamObserver<Empty> done) {
         logger.format("Received commit transaction for zxId epoch "
                 + request.getZxId().getEpoch() + " and counter " + request.getZxId().getCounter());
         if (node.getState() == State.Leading) {
-            for (String peerPort : peersPortsList) {
-                try {
-                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
-                    stub.commitTransaction(request);
-                    List<BankTransactionMapEntry> bankTransactionMapEntryList = node.getHistory().getProposed().getEntriesList();
-                    for (BankTransactionMapEntry bankTransactionMapEntry: bankTransactionMapEntryList) {
-                        if (bankTransactionMapEntry.getKey().getCounter() == request.getZxId().getCounter()
-                                && bankTransactionMapEntry.getKey().getEpoch() == request.getZxId().getEpoch()) {
-                            BankTransaction bankTransaction = bankTransactionMapEntry.getValue();
-                            logger.format("Transaction " + bankTransaction + " was committed.");
-                            BankTransactionMap committedTransactionMap = node.getHistory().getCommitted();
-                            node.setHistory(node.getHistory().toBuilder().setCommitted((committedTransactionMap.toBuilder()
-                                    .addEntries(BankTransactionMapEntry.newBuilder()
-                                            .setValue(bankTransaction)
-                                            .setKey(request.getZxId())
-                                            .build()))).build());
-                        }
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to commit transaction to peer " + peerPort + ": " + e.getMessage());
+//            for (String peerPort : peersPortsList) {
+//                try {
+//                    ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = peerStubs.get(peerPort);
+//                    stub.commitTransaction(request);
+//                    List<BankTransactionMapEntry> bankTransactionMapEntryList = node.getHistory().getProposed().getEntriesList();
+//                    for (BankTransactionMapEntry bankTransactionMapEntry: bankTransactionMapEntryList) {
+//                        if (bankTransactionMapEntry.getKey().getCounter() == request.getZxId().getCounter()
+//                                && bankTransactionMapEntry.getKey().getEpoch() == request.getZxId().getEpoch()) {
+//                            BankTransaction bankTransaction = bankTransactionMapEntry.getValue();
+//                            logger.format("Transaction " + bankTransaction + " was committed.");
+//                            BankTransactionMap committedTransactionMap = node.getHistory().getCommitted();
+//                            node.setHistory(node.getHistory().toBuilder().setCommitted((committedTransactionMap.toBuilder()
+//                                    .addEntries(BankTransactionMapEntry.newBuilder()
+//                                            .setValue(bankTransaction)
+//                                            .setKey(request.getZxId())
+//                                            .build()))).build());
+//                        }
+//                    }
+//                } catch (Exception e) {
+//                    System.err.println("Failed to commit transaction to peer " + peerPort + ": " + e.getMessage());
+//                }
+//            }
+            // Get proposed transaction by zxid and add it to committed transactions
+            List<BankTransactionMapEntry> bankTransactionMapEntryList = node.getHistory().getProposed().getEntriesList();
+            for (BankTransactionMapEntry bankTransactionMapEntry: bankTransactionMapEntryList) {
+                if (bankTransactionMapEntry.getKey().getCounter() == request.getZxId().getCounter()
+                        && bankTransactionMapEntry.getKey().getEpoch() == request.getZxId().getEpoch()) {
+                    BankTransaction bankTransaction = bankTransactionMapEntry.getValue();
+                    logger.format("Transaction " + bankTransaction + " was committed.");
+                    BankTransactionMap committedTransactionMap = node.getHistory().getCommitted();
+                    node.setHistory(node.getHistory().toBuilder().setCommitted((committedTransactionMap.toBuilder()
+                            .addEntries(BankTransactionMapEntry.newBuilder()
+                                    .setValue(bankTransaction)
+                                    .setKey(request.getZxId())
+                                    .build()))).build());
                 }
             }
+            done.onNext(Empty.getDefaultInstance());
             done.onNext(Empty.getDefaultInstance());
         } else if (node.getState() == State.Following) {
             // Get proposed transaction by zxid and add it to committed transactions

@@ -29,22 +29,14 @@ public class Main {
     // This method is called after the Spring context is initialized
     @PostConstruct
     public void init() throws IOException, InterruptedException {
-        // Print the values injected into the Node bean
-//        System.out.println("Node's id is " + node.getId());
-//        System.out.println("Node's port is " + node.getPort());
-
+        zabPeerService.initializePeers();
+        zabPeerService.logNodeData();
+//        Server server = ServerBuilder.forPort(Integer.parseInt(zabPeerService.node.getPort()))
+//                .addService(zabPeerService)
+//                .build()
+//                .start();
         zabPeerService.initializePeers();
         zabPeerService.logNodeData();
 
-//        zabPeerService.setPeersPortsList(node.getPeerPorts());
-//
-//        Server server = ServerBuilder.forPort(Integer.parseInt(node.getPort()))  // Specify the gRPC port
-//                .addService(new ZabPeerService())  // Add gRPC service implementations
-//                .build();
-//
-//        server.start();
-//        System.out.println("gRPC server started on port " + node.getPort());
-//
-//        server.awaitTermination();
     }
 }
