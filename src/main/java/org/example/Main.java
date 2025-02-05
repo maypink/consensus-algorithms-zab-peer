@@ -31,12 +31,10 @@ public class Main {
     public void init() throws IOException, InterruptedException {
         zabPeerService.initializePeers();
         zabPeerService.logNodeData();
-//        Server server = ServerBuilder.forPort(Integer.parseInt(zabPeerService.node.getPort()))
-//                .addService(zabPeerService)
-//                .build()
-//                .start();
-        zabPeerService.initializePeers();
-        zabPeerService.logNodeData();
+        Server server = ServerBuilder.forPort(Integer.parseInt(zabPeerService.node.getPort()))
+                .addService(zabPeerService)
+                .build()
+                .start();
 
     }
 }

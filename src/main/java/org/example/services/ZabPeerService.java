@@ -71,14 +71,14 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
             System.out.println("Current peer is " + peerPort);
 
             // local
-            ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
-                    .usePlaintext()
-                    .build();
-
-            // docker
-//            ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+//            ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
 //                    .usePlaintext()
 //                    .build();
+
+            // docker
+            ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+                    .usePlaintext()
+                    .build();
             ZabPeerServiceGrpc.ZabPeerServiceFutureStub stub = ZabPeerServiceGrpc.newFutureStub(channel);
             peerStubs.put(peerPort, stub);
         }
@@ -375,8 +375,7 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
                     .build();
             done.onNext(followerInfoResponseAck);
 
-            //TODO: overload <>= for zxid
-            if (request.getLastZxId().getCounter() <= node.getHistory().getLastCommitedZxId().getCounter()) {
+            if (compareZxId(request.getLastZxId(), node.getHistory().getLastCommitedZxId()) <= 0) {
                 if (request.getLastZxId().getCounter() < node.getHistory().getOldThreshold().getCounter()) {
                     Snap snap = Snap.newBuilder().setHistory(node.getHistory()).build();
                     FollowerInfoResponse response = FollowerInfoResponse.newBuilder().setSnap(snap).build();
@@ -398,6 +397,13 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
                     .build();
             done.onNext(response);
         }
+    }
+
+    public static int compareZxId(ZxId zxid1, ZxId zxid2) {
+        if (zxid1.getEpoch() != zxid2.getEpoch()) {
+            return Integer.compare(zxid1.getEpoch(), zxid2.getEpoch());
+        }
+        return Integer.compare(zxid1.getCounter(), zxid2.getCounter());
     }
 
     public void sendFollowerInfoRequest(FollowerInfoResponse response, StreamObserver<FollowerInfoRequest> done) {
@@ -468,25 +474,6 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
         }
     }
 
-    private void startTransactionProcessingWorker() {
-        transactionProcessingExecutor.submit(() -> {
-            while (true) {
-                // Continuously poll the queue for incoming votes
-                BankTransaction transaction = transactionQueue.poll();
-                if (transaction != null) {
-                    processTransaction(transaction);
-                }
-                Thread.sleep(5); // Avoid busy waiting
-            }
-        });
-    }
-
-    private void processTransaction(BankTransaction transaction) {
-        synchronized (this) {
-
-        }
-    }
-
     @Override
     public void proposeTransaction(ProposeTransactionRequest request, StreamObserver<Empty> done) {
         // Start FLE if it wasn't started yet
@@ -495,9 +482,6 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
         }
 
         ZxId currentZxid;
-        // Update the request with leader's current zxid
-        // (NOTE: the builder call here needs to build a new request)
-        // logger.format("Broadcasting proposed transaction: " + request.getTransaction());
 
         if (node.getState() == State.Leading) {
             // Update local state: increment counter and generate new zxid
@@ -534,15 +518,14 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
                 executor.submit(() -> {
                     try {
 
-                        // Use blocking stub from a new channel (or consider reusing channels)
-                        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
-                                .usePlaintext()
-                                .build();
-
-                        // docker
-//                        ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+//                        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
 //                                .usePlaintext()
 //                                .build();
+
+                        // docker
+                        ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+                                .usePlaintext()
+                                .build();
                         ZabPeerServiceGrpc.ZabPeerServiceBlockingStub blockingStub = ZabPeerServiceGrpc.newBlockingStub(channel);
                         logger.format("Transaction proposed to " + peerPort);
                         // This call will block until a response (ACK) is received or an error occurs
@@ -588,14 +571,14 @@ public class ZabPeerService extends ZabPeerServiceGrpc.ZabPeerServiceImplBase {
                                 // Alternatively, create one if it was not already initialized
 
                                 // local running
-                                ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
-                                        .usePlaintext()
-                                        .build();
+//                                ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", Integer.parseInt(peerPort))
+//                                        .usePlaintext()
+//                                        .build();
 
                                 // docker
-                                //                          ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
-                                //                                  .usePlaintext()
-                                //                                  .build();
+                                ManagedChannel channel = ManagedChannelBuilder.forAddress("host.docker.internal", Integer.parseInt(peerPort))
+                                        .usePlaintext()
+                                        .build();
                                 stub = ZabPeerServiceGrpc.newFutureStub(channel);
                                 peerStubs.put(peerPort, stub);
                             }

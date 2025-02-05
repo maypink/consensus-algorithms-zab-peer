@@ -1,5 +1,18 @@
 # CONS Project
 
+## Source code
+
+1. Peer
+https://github.com/maypink/consensus-algorithms-zab-peer
+
+2. Client 
+https://github.com/maypink/consensus-algorithms-zab-client 
+
+### Important!
+zip archive contains plain jar without dependencies, since 'fat' jat is about 70MB. 'fat' jar files are available on github in target folder.
+
+Tested way to launch -- >3 peers and 1 client locally, with generated configurations (everything is in github). To launch using docker follow the inctructions below, however, there will be probably minor issues ;....)
+
 ## Requirements
 
 1. Rust
