@@ -1,0 +1,534 @@
+maiia@DESKTOP-FPQMPOL MINGW64 ~/IdeaProjects/zab
+$ ./build_docker_containers.sh
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.peer
+#1 transferring dockerfile: 309B done
+#1 DONE 0.0s
+
+#2 [internal] load .dockerignore
+#2 transferring context: 2B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/openjdk:17-jdk-alpine
+#3 DONE 1.5s
+
+#4 [1/2] FROM docker.io/library/openjdk:17-jdk-alpine@sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81
+#4 resolve docker.io/library/openjdk:17-jdk-alpine@sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81 0.0s done
+#4 sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81 319B / 319B done
+#4 sha256:a996cdcc040704ec6badaf5fecf1e144c096e00231a29188596c784bcf858d05 951B / 951B done
+#4 sha256:264c9bdce361556ba6e685e401662648358980c01151c3d977f0fdf77f7c26ab 3.48kB / 3.48kB done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 43.88MB 0.8s done
+#5 DONE 0.8s
+
+#6 [2/2] COPY zab-peer-1.0-SNAPSHOT.jar .
+#6 DONE 0.2s
+
+#7 exporting to image
+#7 exporting layers
+#7 exporting layers 0.2s done
+#7 writing image sha256:c5139912c91331d7bd2fa2b6c92e49fa76f0566cbc61b1b6d006e7ca5508e14a done
+#7 naming to docker.io/library/peer_app done
+#7 DONE 0.2s
+
+What's Next?
+  View a summary of image vulnerabilities and recommendations → docker scout quickview
+#0 building with "default" instance using docker driver
+
+#1 [internal] load .dockerignore
+#1 transferring context: 2B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile.client
+#2 transferring dockerfile: 313B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/openjdk:17-jdk-alpine
+#3 DONE 0.5s
+
+#4 [1/2] FROM docker.io/library/openjdk:17-jdk-alpine@sha256:4b6abae565492dbe9e7a894137c966a7485154238902f2f25e9dbd9784383d81
+#4 CACHED
+
+#5 [internal] load build context
+#5 transferring context: 38.32MB 0.7s done
+#5 DONE 0.7s
+
+#6 [2/2] COPY zab-client-1.0-SNAPSHOT.jar .
+#6 DONE 0.3s
+
+#7 exporting to image
+#7 exporting layers
+#7 exporting layers 0.2s done
+#7 writing image sha256:ca8613e8019cf5cf988f7e9549c97fc7701882a88ab322b9180005849cab5cf6 done
+#7 naming to docker.io/library/client_app done
+#7 DONE 0.2s
+
+What's Next?
+  View a summary of image vulnerabilities and recommendations → docker scout quickview
+
+maiia@DESKTOP-FPQMPOL MINGW64 ~/IdeaProjects/zab
+$ ./generate_docker_compose.sh 3
+Created configuration file: ./config/application-peer1.properties
+Created configuration file: ./config/application-peer2.properties
+Created configuration file: ./config/application-peer3.properties
+Created configuration file: ./config/application-client.properties
+Generated docker-compose.yml and configuration files for 3 peers.
+
+maiia@DESKTOP-FPQMPOL MINGW64 ~/IdeaProjects/zab
+$ docker-compose up --build --remove-orphans
+ Container peer3  Creating
+ Container peer1  Creating
+ Container peer2  Creating
+ Container peer3  Created
+ Container peer1  Created
+ Container peer2  Created
+ Container client_app  Recreate
+ Container client_app  Recreated
+Attaching to client_app, peer1, peer2, peer3
+peer1       |
+peer1       |   .   ____          _            __ _ _
+peer1       |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+peer1       | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+peer1       |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+peer1       |   '  |____| .__|_| |_|_| |_\__, | / / / /
+peer1       |  =========|_|==============|___/=/_/_/_/
+peer1       |  :: Spring Boot ::                (v2.7.4)
+peer1       |
+peer1       | 2025-02-06 12:26:01.129  INFO 1 --- [           main] org.example.Main                         : Starting Main using Java 17-ea on 29e5c431fde6 with PID 1 (/zab-peer-1.0-SNAPSHOT.jar started by root in /)
+peer1       | 2025-02-06 12:26:01.143  INFO 1 --- [           main] org.example.Main                         : No active profile set, falling back to 1 default profile: "default"
+peer2       |
+peer2       |   .   ____          _            __ _ _
+peer2       |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+peer2       | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+peer2       |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+peer2       |   '  |____| .__|_| |_|_| |_\__, | / / / /
+peer2       |  =========|_|==============|___/=/_/_/_/
+peer2       |  :: Spring Boot ::                (v2.7.4)
+peer2       |
+peer2       | 2025-02-06 12:26:05.588  INFO 1 --- [           main] org.example.Main                         : Starting Main using Java 17-ea on 2ed8a0925f4c with PID 1 (/zab-peer-1.0-SNAPSHOT.jar started by root in /)
+peer2       | 2025-02-06 12:26:05.593  INFO 1 --- [           main] org.example.Main                         : No active profile set, falling back to 1 default profile: "default"
+peer3       |
+peer3       |   .   ____          _            __ _ _
+peer3       |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+peer3       | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+peer3       |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+peer3       |   '  |____| .__|_| |_|_| |_\__, | / / / /
+peer3       |  =========|_|==============|___/=/_/_/_/
+peer3       |  :: Spring Boot ::                (v2.7.4)
+peer3       |
+peer3       | 2025-02-06 12:26:06.487  INFO 1 --- [           main] org.example.Main                         : Starting Main using Java 17-ea on 3b2bb2cdb2e9 with PID 1 (/zab-peer-1.0-SNAPSHOT.jar started by root in /)
+peer3       | 2025-02-06 12:26:06.494  INFO 1 --- [           main] org.example.Main                         : No active profile set, falling back to 1 default profile: "default"
+peer1       | 2025-02-06 12:26:06.596  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 20001 (http)
+peer1       | 2025-02-06 12:26:06.632  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+peer1       | 2025-02-06 12:26:06.634  INFO 1 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.65]
+peer1       | 2025-02-06 12:26:06.944  INFO 1 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+peer1       | 2025-02-06 12:26:06.944  INFO 1 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 5692 ms
+peer1       | Initializing peers for peer 1
+peer1       | Current peer is 20002
+peer1       | Current peer is 20003
+peer1       | 12:26:07.995 ---- Node's id is 1
+peer1       | 12:26:07.995 ---- Node's port is 20001
+peer1       | 2025-02-06 12:26:09.096  INFO 1 --- [           main] g.s.a.GrpcServerFactoryAutoConfiguration : Detected grpc-netty-shaded: Creating ShadedNettyGrpcServerFactory
+peer1       | 2025-02-06 12:26:09.403  WARN 1 --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 20001 is already in use
+peer1       | 2025-02-06 12:26:09.426  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+peer1       | 2025-02-06 12:26:09.524  INFO 1 --- [           main] ConditionEvaluationReportLoggingListener :
+peer1       |
+peer1       | Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+peer1       | 2025-02-06 12:26:09.605 ERROR 1 --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   :
+peer1       |
+peer1       | ***************************
+peer1       | APPLICATION FAILED TO START
+peer1       | ***************************
+peer1       |
+peer1       | Description:
+peer1       |
+peer1       | Web server failed to start. Port 20001 was already in use.
+peer1       |
+peer1       | Action:
+peer1       |
+peer1       | Identify and stop the process that's listening on port 20001 or configure this application to listen on another port.
+peer1       |
+peer2       | 2025-02-06 12:26:09.750  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 20002 (http)
+peer2       | 2025-02-06 12:26:09.794  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+peer2       | 2025-02-06 12:26:09.795  INFO 1 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.65]
+peer2       | 2025-02-06 12:26:10.293  INFO 1 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+peer2       | 2025-02-06 12:26:10.294  INFO 1 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 4562 ms
+peer2       | Initializing peers for peer 2
+peer2       | Current peer is 20001
+peer3       | 2025-02-06 12:26:11.262  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 20003 (http)
+peer3       | 2025-02-06 12:26:11.312  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+peer3       | 2025-02-06 12:26:11.323  INFO 1 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.65]
+peer3       | 2025-02-06 12:26:11.589  INFO 1 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+peer3       | 2025-02-06 12:26:11.589  INFO 1 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 4944 ms
+peer2       | Current peer is 20003
+peer2       | 12:26:11.732 ---- Node's id is 2
+peer2       | 12:26:11.732 ---- Node's port is 20002
+peer3       | Initializing peers for peer 3
+peer3       | Current peer is 20001
+peer3       | Current peer is 20002
+peer3       | 12:26:12.711 ---- Node's id is 3
+peer3       | 12:26:12.712 ---- Node's port is 20003
+peer2       | 2025-02-06 12:26:13.461  INFO 1 --- [           main] g.s.a.GrpcServerFactoryAutoConfiguration : Detected grpc-netty-shaded: Creating ShadedNettyGrpcServerFactory
+peer2       | 2025-02-06 12:26:14.251  WARN 1 --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 20002 is already in use
+peer2       | 2025-02-06 12:26:14.264  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+peer2       | 2025-02-06 12:26:14.335  INFO 1 --- [           main] ConditionEvaluationReportLoggingListener :
+peer2       |
+peer2       | Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+peer3       | 2025-02-06 12:26:14.381  INFO 1 --- [           main] g.s.a.GrpcServerFactoryAutoConfiguration : Detected grpc-netty-shaded: Creating ShadedNettyGrpcServerFactory
+peer2       | 2025-02-06 12:26:14.453 ERROR 1 --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   :
+peer2       |
+peer2       | ***************************
+peer2       | APPLICATION FAILED TO START
+peer2       | ***************************
+peer2       |
+peer2       | Description:
+peer2       |
+peer2       | Web server failed to start. Port 20002 was already in use.
+peer2       |
+peer2       | Action:
+peer2       |
+peer2       | Identify and stop the process that's listening on port 20002 or configure this application to listen on another port.
+peer2       |
+peer3       | 2025-02-06 12:26:15.002  WARN 1 --- [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 20003 is already in use
+peer3       | 2025-02-06 12:26:15.036  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+peer3       | 2025-02-06 12:26:15.100  INFO 1 --- [           main] ConditionEvaluationReportLoggingListener :
+peer3       |
+peer3       | Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+peer3       | 2025-02-06 12:26:15.159 ERROR 1 --- [           main] o.s.b.d.LoggingFailureAnalysisReporter   :
+peer3       |
+peer3       | ***************************
+peer3       | APPLICATION FAILED TO START
+peer3       | ***************************
+peer3       |
+peer3       | Description:
+peer3       |
+peer3       | Web server failed to start. Port 20003 was already in use.
+peer3       |
+peer3       | Action:
+peer3       |
+peer3       | Identify and stop the process that's listening on port 20003 or configure this application to listen on another port.
+peer3       |
+client_app  |
+client_app  |   .   ____          _            __ _ _
+client_app  |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+client_app  | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+client_app  |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+client_app  |   '  |____| .__|_| |_|_| |_\__, | / / / /
+client_app  |  =========|_|==============|___/=/_/_/_/
+client_app  |  :: Spring Boot ::                (v2.7.4)
+client_app  |
+client_app  | 2025-02-06 12:26:16.964  INFO 1 --- [           main] org.zab.Main                             : Starting Main using Java 17-ea on 7d4491d1421c with PID 1 (/zab-client-1.0-SNAPSHOT.jar started by root in /)
+client_app  | 2025-02-06 12:26:16.971  INFO 1 --- [           main] org.zab.Main                             : No active profile set, falling back to 1 default profile: "default"
+client_app  | 2025-02-06 12:26:18.454  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+client_app  | 2025-02-06 12:26:18.468  INFO 1 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+client_app  | 2025-02-06 12:26:18.469  INFO 1 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.65]
+client_app  | 2025-02-06 12:26:18.567  INFO 1 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+client_app  | 2025-02-06 12:26:18.567  INFO 1 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1499 ms
+client_app  | Connecting to peer2 channel...
+client_app  | Connecting to peer3 channel...
+client_app  | Connecting to peer4 channel...
+client_app  | Client grpc server has started on port 6501
+client_app  | Client server has started on port 20004
+peer1       | 12:26:19.398 ---- Node 1 is in Election state. Waiting for election to complete.
+peer1       | 12:26:19.401 ---- Resetting votes count...
+peer1       | 12:26:19.401 ---- {1=1}
+peer1       | 12:26:19.402 ---- Sending vote from node 1 to peer on port 20002 for node 1
+peer1       | 12:26:19.416 ---- Sending vote from node 1 to peer on port 20003 for node 1
+peer1       | 12:26:19.417 ---- Processing vote from Node 1
+peer2       | 12:26:19.690 ---- Resetting votes count...
+peer2       | 12:26:19.690 ---- {2=1}
+peer2       | 12:26:19.690 ---- Sending vote from node 2 to peer on port 20001 for node 2
+peer3       | 12:26:19.698 ---- Resetting votes count...
+peer3       | 12:26:19.698 ---- {3=1}
+peer3       | 12:26:19.698 ---- Sending vote from node 3 to peer on port 20001 for node 3
+peer2       | 12:26:19.704 ---- Sending vote from node 2 to peer on port 20003 for node 2
+peer3       | 12:26:19.714 ---- Sending vote from node 3 to peer on port 20002 for node 3
+peer2       | 12:26:19.714 ---- Processing vote from Node 1
+peer3       | 12:26:19.720 ---- Processing vote from Node 1
+peer1       | 12:26:24.418 ---- Election timeout occurred. Proceeding with current state.
+peer1       | 12:26:24.418 ---- {1=1}
+peer1       | 12:26:24.419 ---- State of the 1 node is Election
+peer2       | 12:26:24.445 ---- Node 2 is in Election state. Waiting for election to complete.
+peer2       | 12:26:24.449 ---- Processing vote from Node 2
+peer2       | 12:26:29.445 ---- Election timeout occurred. Proceeding with current state.
+peer2       | 12:26:29.445 ---- {2=1}
+peer2       | 12:26:29.446 ---- State of the 2 node is Election
+peer3       | 12:26:29.459 ---- Node 3 is in Election state. Waiting for election to complete.
+peer3       | 12:26:29.464 ---- Processing vote from Node 3
+peer3       | 12:26:29.464 ---- Election timed out. Retrying...
+peer3       | 12:26:29.464 ---- {3=1}
+peer3       | 12:26:29.469 ---- Processing vote from Node 3
+peer3       | 12:26:29.470 ---- Received vote is preferred above the current for node 3
+peer3       | 12:26:29.470 ---- Updating current vote for Node 3
+peer3       | 12:26:29.470 ---- Current votes: {3=2}
+peer3       | 12:26:29.470 ---- Sending vote from node 3 to peer on port 20001 for node 3
+peer3       | 12:26:29.472 ---- Sending vote from node 3 to peer on port 20002 for node 3
+peer3       | 12:26:29.473 ---- Quorum reached! Node 3 becomes the leader.
+peer2       | 12:26:29.478 ---- Processing vote from Node 3
+peer2       | 12:26:29.478 ---- Received vote is preferred above the current for node 2
+peer2       | 12:26:29.478 ---- Updating current vote for Node 2
+peer2       | 12:26:29.479 ---- Current votes: {2=1, 3=1}
+peer2       | 12:26:29.479 ---- Sending vote from node 2 to peer on port 20001 for node 3
+peer2       | 12:26:29.484 ---- Sending vote from node 2 to peer on port 20003 for node 3
+peer2       | 12:26:29.484 ---- Election timed out. Retrying...
+peer2       | 12:26:29.484 ---- {2=1, 3=1}
+peer1       | 12:26:29.485 ---- Processing vote from Node 3
+peer1       | 12:26:29.485 ---- Received vote is preferred above the current for node 1
+peer1       | 12:26:29.485 ---- Updating current vote for Node 1
+peer1       | 12:26:29.486 ---- Current votes: {1=1, 3=1}
+peer1       | 12:26:29.486 ---- Sending vote from node 1 to peer on port 20002 for node 3
+peer1       | 12:26:29.491 ---- Sending vote from node 1 to peer on port 20003 for node 3
+peer1       | 12:26:29.492 ---- Election timed out. Retrying...
+peer1       | 12:26:29.492 ---- {1=1, 3=1}
+peer3       | 12:26:34.461 ---- State of the 3 node is Leading
+peer3       | 12:26:34.487 ---- Transaction proposed to 20002
+peer3       | 12:26:34.487 ---- Transaction proposed to 20001
+peer2       | 12:26:34.569 ---- Following node 2 received proposed transaction account_id: 2878
+peer2       | amount: 567
+peer2       |  with counter 1 and epoch 2
+peer1       | 12:26:34.570 ---- Following node 1 received proposed transaction account_id: 2878
+peer1       | amount: 567
+peer1       |  with counter 1 and epoch 2
+peer3       | 12:26:34.581 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.583 ---- Received commit transaction for zxId epoch 2 and counter 1
+peer1       | 12:26:34.588 ---- Received commit transaction for zxId epoch 2 and counter 1
+peer1       | 12:26:34.589 ---- Transaction account_id: 2878
+peer1       | amount: 567
+peer1       |  was committed.
+peer2       | 12:26:34.590 ---- Received commit transaction for zxId epoch 2 and counter 1
+peer2       | 12:26:34.590 ---- Transaction account_id: 2878
+peer2       | amount: 567
+peer2       |  was committed.
+peer3       | 12:26:34.628 ---- Transaction account_id: 2878
+peer3       | amount: 567
+peer3       |  was committed.
+peer1       | 12:26:34.632 ---- State of the 1 node is Following
+peer2       | 12:26:34.636 ---- State of the 2 node is Following
+peer3       | 12:26:34.639 ---- State of the 3 node is Leading
+peer3       | 12:26:34.644 ---- Transaction proposed to 20001
+peer3       | 12:26:34.644 ---- Transaction proposed to 20002
+peer2       | 12:26:34.655 ---- Following node 2 received proposed transaction account_id: 3346
+peer2       | amount: 306
+peer2       |  with counter 2 and epoch 2
+peer1       | 12:26:34.657 ---- Following node 1 received proposed transaction account_id: 3346
+peer1       | amount: 306
+peer1       |  with counter 2 and epoch 2
+peer3       | 12:26:34.663 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.664 ---- Received commit transaction for zxId epoch 2 and counter 2
+peer3       | 12:26:34.665 ---- Transaction account_id: 3346
+peer3       | amount: 306
+peer3       |  was committed.
+peer1       | 12:26:34.669 ---- Received commit transaction for zxId epoch 2 and counter 2
+peer1       | 12:26:34.670 ---- Transaction account_id: 3346
+peer1       | amount: 306
+peer1       |  was committed.
+peer2       | 12:26:34.671 ---- Received commit transaction for zxId epoch 2 and counter 2
+peer2       | 12:26:34.671 ---- Transaction account_id: 3346
+peer2       | amount: 306
+peer2       |  was committed.
+peer1       | 12:26:34.673 ---- State of the 1 node is Following
+peer2       | 12:26:34.678 ---- State of the 2 node is Following
+peer3       | 12:26:34.682 ---- State of the 3 node is Leading
+peer3       | 12:26:34.686 ---- Transaction proposed to 20001
+peer3       | 12:26:34.686 ---- Transaction proposed to 20002
+peer1       | 12:26:34.696 ---- Following node 1 received proposed transaction account_id: 83
+peer1       | amount: 977
+peer1       |  with counter 3 and epoch 2
+peer2       | 12:26:34.697 ---- Following node 2 received proposed transaction account_id: 83
+peer2       | amount: 977
+peer2       |  with counter 3 and epoch 2
+peer3       | 12:26:34.700 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.701 ---- Received commit transaction for zxId epoch 2 and counter 3
+peer3       | 12:26:34.701 ---- Transaction account_id: 83
+peer3       | amount: 977
+peer3       |  was committed.
+peer1       | 12:26:34.704 ---- Received commit transaction for zxId epoch 2 and counter 3
+peer1       | 12:26:34.705 ---- Transaction account_id: 83
+peer1       | amount: 977
+peer1       |  was committed.
+peer2       | 12:26:34.705 ---- Received commit transaction for zxId epoch 2 and counter 3
+peer2       | 12:26:34.706 ---- Transaction account_id: 83
+peer2       | amount: 977
+peer2       |  was committed.
+peer1       | 12:26:34.707 ---- State of the 1 node is Following
+peer2       | 12:26:34.711 ---- State of the 2 node is Following
+peer3       | 12:26:34.713 ---- State of the 3 node is Leading
+peer3       | 12:26:34.717 ---- Transaction proposed to 20001
+peer3       | 12:26:34.718 ---- Transaction proposed to 20002
+peer2       | 12:26:34.726 ---- Following node 2 received proposed transaction account_id: 88
+peer2       | amount: 124
+peer1       | 12:26:34.726 ---- Following node 1 received proposed transaction account_id: 88
+peer2       |  with counter 4 and epoch 2
+peer1       | amount: 124
+peer1       |  with counter 4 and epoch 2
+peer3       | 12:26:34.728 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.729 ---- Received commit transaction for zxId epoch 2 and counter 4
+peer3       | 12:26:34.729 ---- Transaction account_id: 88
+peer3       | amount: 124
+peer3       |  was committed.
+peer2       | 12:26:34.733 ---- Received commit transaction for zxId epoch 2 and counter 4
+peer2       | 12:26:34.733 ---- Transaction account_id: 88
+peer2       | amount: 124
+peer2       |  was committed.
+peer1       | 12:26:34.733 ---- Received commit transaction for zxId epoch 2 and counter 4
+peer1       | 12:26:34.734 ---- Transaction account_id: 88
+peer1       | amount: 124
+peer1       |  was committed.
+peer1       | 12:26:34.736 ---- State of the 1 node is Following
+peer2       | 12:26:34.739 ---- State of the 2 node is Following
+peer3       | 12:26:34.743 ---- State of the 3 node is Leading
+peer3       | 12:26:34.748 ---- Transaction proposed to 20001
+peer3       | 12:26:34.748 ---- Transaction proposed to 20002
+peer1       | 12:26:34.756 ---- Following node 1 received proposed transaction account_id: 3056
+peer1       | amount: 366
+peer1       |  with counter 5 and epoch 2
+peer2       | 12:26:34.767 ---- Following node 2 received proposed transaction account_id: 3056
+peer2       | amount: 366
+peer2       |  with counter 5 and epoch 2
+peer3       | 12:26:34.770 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.770 ---- Received commit transaction for zxId epoch 2 and counter 5
+peer3       | 12:26:34.770 ---- Transaction account_id: 3056
+peer3       | amount: 366
+peer3       |  was committed.
+peer2       | 12:26:34.774 ---- Received commit transaction for zxId epoch 2 and counter 5
+peer2       | 12:26:34.775 ---- Transaction account_id: 3056
+peer2       | amount: 366
+peer2       |  was committed.
+peer1       | 12:26:34.775 ---- State of the 1 node is Following
+peer1       | 12:26:34.775 ---- Received commit transaction for zxId epoch 2 and counter 5
+peer1       | 12:26:34.775 ---- Transaction account_id: 3056
+peer1       | amount: 366
+peer1       |  was committed.
+peer2       | 12:26:34.779 ---- State of the 2 node is Following
+peer3       | 12:26:34.782 ---- State of the 3 node is Leading
+peer3       | 12:26:34.787 ---- Transaction proposed to 20001
+peer3       | 12:26:34.787 ---- Transaction proposed to 20002
+peer1       | 12:26:34.795 ---- Following node 1 received proposed transaction account_id: 3898
+peer1       | amount: 456
+peer2       | 12:26:34.795 ---- Following node 2 received proposed transaction account_id: 3898
+peer2       | amount: 456
+peer2       |  with counter 6 and epoch 2
+peer1       |  with counter 6 and epoch 2
+peer3       | 12:26:34.798 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.799 ---- Received commit transaction for zxId epoch 2 and counter 6
+peer3       | 12:26:34.800 ---- Transaction account_id: 3898
+peer3       | amount: 456
+peer3       |  was committed.
+peer1       | 12:26:34.804 ---- State of the 1 node is Following
+peer1       | 12:26:34.804 ---- Received commit transaction for zxId epoch 2 and counter 6
+peer1       | 12:26:34.805 ---- Transaction account_id: 3898
+peer1       | amount: 456
+peer1       |  was committed.
+peer2       | 12:26:34.805 ---- Received commit transaction for zxId epoch 2 and counter 6
+peer2       | 12:26:34.805 ---- Transaction account_id: 3898
+peer2       | amount: 456
+peer2       |  was committed.
+peer2       | 12:26:34.810 ---- State of the 2 node is Following
+peer3       | 12:26:34.814 ---- State of the 3 node is Leading
+peer3       | 12:26:34.818 ---- Transaction proposed to 20002
+peer3       | 12:26:34.818 ---- Transaction proposed to 20001
+peer1       | 12:26:34.835 ---- Following node 1 received proposed transaction account_id: 1326
+peer1       | amount: 446
+peer1       |  with counter 7 and epoch 2
+peer2       | 12:26:34.835 ---- Following node 2 received proposed transaction account_id: 1326
+peer2       | amount: 446
+peer2       |  with counter 7 and epoch 2
+peer3       | 12:26:34.854 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.854 ---- Received commit transaction for zxId epoch 2 and counter 7
+peer3       | 12:26:34.854 ---- Transaction account_id: 1326
+peer3       | amount: 446
+peer3       |  was committed.
+peer1       | 12:26:34.857 ---- Received commit transaction for zxId epoch 2 and counter 7
+peer2       | 12:26:34.858 ---- Received commit transaction for zxId epoch 2 and counter 7
+peer2       | 12:26:34.858 ---- Transaction account_id: 1326
+peer2       | amount: 446
+peer2       |  was committed.
+peer1       | 12:26:34.858 ---- Transaction account_id: 1326
+peer1       | amount: 446
+peer1       |  was committed.
+peer1       | 12:26:34.859 ---- State of the 1 node is Following
+peer2       | 12:26:34.863 ---- State of the 2 node is Following
+peer3       | 12:26:34.867 ---- State of the 3 node is Leading
+peer3       | 12:26:34.873 ---- Transaction proposed to 20002
+peer3       | 12:26:34.873 ---- Transaction proposed to 20001
+peer1       | 12:26:34.882 ---- Following node 1 received proposed transaction account_id: 745
+peer1       | amount: 267
+peer1       |  with counter 8 and epoch 2
+peer2       | 12:26:34.885 ---- Following node 2 received proposed transaction account_id: 745
+peer2       | amount: 267
+peer2       |  with counter 8 and epoch 2
+peer3       | 12:26:34.907 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.908 ---- Received commit transaction for zxId epoch 2 and counter 8
+peer3       | 12:26:34.908 ---- Transaction account_id: 745
+peer3       | amount: 267
+peer3       |  was committed.
+peer2       | 12:26:34.911 ---- Received commit transaction for zxId epoch 2 and counter 8
+peer2       | 12:26:34.911 ---- Transaction account_id: 745
+peer2       | amount: 267
+peer2       |  was committed.
+peer1       | 12:26:34.912 ---- Received commit transaction for zxId epoch 2 and counter 8
+peer1       | 12:26:34.912 ---- Transaction account_id: 745
+peer1       | amount: 267
+peer1       |  was committed.
+peer1       | 12:26:34.912 ---- State of the 1 node is Following
+peer2       | 12:26:34.915 ---- State of the 2 node is Following
+peer3       | 12:26:34.918 ---- State of the 3 node is Leading
+peer3       | 12:26:34.923 ---- Transaction proposed to 20002
+peer3       | 12:26:34.923 ---- Transaction proposed to 20001
+peer1       | 12:26:34.932 ---- Following node 1 received proposed transaction account_id: 9529
+peer1       | amount: 69
+peer1       |  with counter 9 and epoch 2
+peer2       | 12:26:34.933 ---- Following node 2 received proposed transaction account_id: 9529
+peer2       | amount: 69
+peer2       |  with counter 9 and epoch 2
+peer3       | 12:26:34.935 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.936 ---- Received commit transaction for zxId epoch 2 and counter 9
+peer3       | 12:26:34.937 ---- Transaction account_id: 9529
+peer3       | amount: 69
+peer3       |  was committed.
+peer1       | 12:26:34.940 ---- Received commit transaction for zxId epoch 2 and counter 9
+peer1       | 12:26:34.940 ---- Transaction account_id: 9529
+peer1       | amount: 69
+peer1       |  was committed.
+peer2       | 12:26:34.940 ---- Received commit transaction for zxId epoch 2 and counter 9
+peer2       | 12:26:34.941 ---- Transaction account_id: 9529
+peer2       | amount: 69
+peer2       |  was committed.
+peer1       | 12:26:34.942 ---- State of the 1 node is Following
+peer2       | 12:26:34.946 ---- State of the 2 node is Following
+peer3       | 12:26:34.950 ---- State of the 3 node is Leading
+peer3       | 12:26:34.956 ---- Transaction proposed to 20001
+peer3       | 12:26:34.956 ---- Transaction proposed to 20002
+peer2       | 12:26:34.966 ---- Following node 2 received proposed transaction account_id: 3764
+peer2       | amount: 826
+peer2       |  with counter 10 and epoch 2
+peer1       | 12:26:34.967 ---- Following node 1 received proposed transaction account_id: 3764
+peer1       | amount: 826
+peer1       |  with counter 10 and epoch 2
+peer3       | 12:26:34.970 ---- Received ACK from quorum (3 out of 3).
+peer3       | 12:26:34.970 ---- Received commit transaction for zxId epoch 2 and counter 10
+peer3       | 12:26:34.971 ---- Transaction account_id: 3764
+peer3       | amount: 826
+peer3       |  was committed.
+peer1       | 12:26:34.977 ---- Received commit transaction for zxId epoch 2 and counter 10
+peer1       | 12:26:34.977 ---- Transaction account_id: 3764
+peer1       | amount: 826
+peer1       |  was committed.
+peer2       | 12:26:34.975 ---- Received commit transaction for zxId epoch 2 and counter 10
+peer2       | 12:26:34.975 ---- Transaction account_id: 3764
+peer2       | amount: 826
+peer2       |  was committed.
+client_app  | {20001=366, 20002=366, 20003=366}
+client_app  | {20001=306, 20002=306, 20003=306}
+client_app  | {20001=977, 20002=977, 20003=977}
+client_app  | {20001=826, 20002=826, 20003=826}
+client_app  | {20001=124, 20002=124, 20003=124}
+client_app  | {20001=267, 20002=267, 20003=267}
+client_app  | {20001=69, 20002=69, 20003=69}
+client_app  | {20001=456, 20002=456, 20003=456}
+client_app  | {20001=567, 20002=567, 20003=567}
+client_app  | {20001=446, 20002=446, 20003=446}
+
